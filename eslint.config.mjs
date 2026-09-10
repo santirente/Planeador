@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Mockup de referencia, no es parte de la app (ver docs/BLUEPRINT.md)
+    "docs/**",
   ]),
 ]);
 
