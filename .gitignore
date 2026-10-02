@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# datos reales de la empresa, no subir al repo
+docs/reference/*.xlsx
