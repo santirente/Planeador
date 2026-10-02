@@ -11,6 +11,9 @@ import type { DbClient } from "@/lib/db/client";
 import type { FilaError } from "@/lib/ingestion/types";
 
 export const runtime = "nodejs";
+// Cargas grandes (BOM ~5k filas) tardan 7-13s; el límite por defecto en Vercel
+// Hobby es 10s.
+export const maxDuration = 60;
 
 type IngestOutcome = { inserted: number; errores: FilaError[]; aborted?: boolean };
 
