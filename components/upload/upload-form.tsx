@@ -12,13 +12,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+// Solo estos 5 reportes vienen realmente de Novasoft (confirmado con el
+// usuario, 2026-09-12) — "Stock de Seguridad" y "Órdenes en Proceso de
+// Inyección" ya no existen como archivo aparte, se derivan cruzando estos
+// datos (ver lib/balance/engine.ts). Debe reflejar las claves de HANDLERS en
+// app/api/ingest/route.ts.
+const IMPLEMENTED_TYPES = new Set(["productos", "kardex", "bom", "pedidos", "mallas"]);
+
 const REPORT_TYPES = [
   { value: "productos", label: "Maestro de Productos (Excel)" },
-  { value: "bom", label: "BOM / Lista de Materiales (Excel)" },
   { value: "kardex", label: "Kardex de Inventario (Excel)" },
+  { value: "bom", label: "BOM / Lista de Materiales (Excel)" },
   { value: "pedidos", label: "Listado de Pedidos (Excel)" },
-  { value: "stock_seguridad", label: "Stock Semanal (Excel)" },
-  { value: "en_proceso_inyeccion", label: "En Proceso de Inyección (Excel)" },
   { value: "mallas", label: "Listado de Mallas (Excel)" },
 ] as const;
 
@@ -83,7 +88,7 @@ export function UploadForm({ onDone }: { onDone?: () => void }) {
             {REPORT_TYPES.map((r) => (
               <SelectItem key={r.value} value={r.value}>
                 {r.label}
-                {r.value !== "productos" ? " — próximamente" : ""}
+                {!IMPLEMENTED_TYPES.has(r.value) ? " — próximamente" : ""}
               </SelectItem>
             ))}
           </SelectContent>
@@ -106,7 +111,7 @@ export function UploadForm({ onDone }: { onDone?: () => void }) {
         <h3 className="mt-2 text-sm font-semibold text-slate-900">
           Arrastra tu archivo Excel aquí
         </h3>
-        <p className="mt-1 text-sm text-slate-500">Soporta .xlsx exportados directamente de Novasoft</p>
+        <p className="mt-1 text-sm text-slate-500">Soporta los archivos (.xls/.xlsx) exportados directamente de Novasoft</p>
         <div className="mt-6 flex justify-center">
           <input
             ref={inputRef}

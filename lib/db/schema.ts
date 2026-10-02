@@ -31,6 +31,10 @@ export const estadoCargaEnum = pgEnum("estado_carga", [
   "error",
 ]);
 
+// "stock_seguridad" y "en_proceso_inyeccion" se dejan en el enum (aunque ya
+// no se aceptan cargas nuevas de esos tipos, ver app/api/ingest/route.ts)
+// para no invalidar los registros históricos de `cargas` que ya los usan —
+// Postgres no permite quitar valores de un enum sin recrear el tipo.
 export const tipoReporteEnum = pgEnum("tipo_reporte", [
   "productos",
   "bom",
@@ -79,37 +83,32 @@ export const productos = pgTable("productos", {
 });
 
 /**
- * Maestro de fichas/piezas producidas (código formato NNNN-NNN-NN).
- * Espacio de numeración propio, independiente de `productos` — confirmado
- * con el usuario, ver docs/schema/0001-modelo-datos-borrador.md.
+ * BOM/receta (de "3.Boom_Materiales", solo columnas A:L).
+ *
+ * NO existe una tabla `fichas` separada: se comprobó contra los datos reales
+ * que el 100% de los códigos de ficha ya existen como fila en `productos`
+ * (mismo código, visto una vez como ítem de catálogo/inventario y otra vez
+ * como encabezado de receta). Un producto es el resultado de otros
+ * productos (`matpriCode`) más tiempo (`esTiempo`) — por eso `fichaCode`
+ * también referencia `productos.itemCode`: es la misma tabla vista dos
+ * veces (padre construido / insumo consumido). El BOM es multinivel: un
+ * producto puede a la vez ser insumo de otro (ej. una pieza inyectada que
+ * luego se ensambla en el producto final) — el motor de balance debe
+ * explotar la receta recursivamente, no solo un nivel.
  */
-export const fichas = pgTable("fichas", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  fichaCode: text("ficha_code").notNull().unique(),
-  nombre: text("nombre"),
-  alterno: text("alterno"),
-  estado: integer("estado"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-/** BOM/receta (de "3.Boom_Materiales", solo columnas A:L). */
 export const bomItems = pgTable("bom_items", {
   id: uuid("id").defaultRandom().primaryKey(),
   fichaCode: text("ficha_code")
     .notNull()
-    .references(() => fichas.fichaCode, { onDelete: "cascade" }),
+    .references(() => productos.itemCode, { onDelete: "cascade" }),
   matpriCode: text("matpri_code")
     .notNull()
     .references(() => productos.itemCode, { onDelete: "restrict" }),
   cantidad: numeric("cantidad", { precision: 18, scale: 6 }).notNull(),
-  etapa: text("etapa"), // INY, EMPAQUE, etc.
+  etapa: text("etapa"), // INY, EMPAQUE, y otros códigos de etapa/proceso
   unidadMedida: text("unidad_medida"),
-  esTiempo: boolean("es_tiempo").notNull().default(false), // true si matpriCode es bodega 90
+  esTiempo: boolean("es_tiempo").notNull().default(false), // true si matpriCode es categoría "tiempo" (bodega 99)
+  estado: integer("estado"),
   fechaActualizacion: date("fecha_actualizacion"),
   cargaId: uuid("carga_id").references(() => cargas.id, {
     onDelete: "set null",
@@ -174,59 +173,6 @@ export const pedidos = pgTable("pedidos", {
     .defaultNow(),
 });
 
-/**
- * Objetivo de stock de seguridad (de "6. Stock Semanal", ~2 semanas de
- * cobertura). No es inventario: es demanda adicional que se cruza junto
- * con `pedidos` para calcular la necesidad total.
- */
-export const demandaStockSeguridad = pgTable("demanda_stock_seguridad", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  itemCode: text("item_code").notNull(),
-  bodega: text("bodega"),
-  cantidadObjetivo: numeric("cantidad_objetivo", {
-    precision: 18,
-    scale: 4,
-  }).notNull(),
-  cargaId: uuid("carga_id").references(() => cargas.id, {
-    onDelete: "set null",
-  }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-/** Órdenes de inyección en curso (de "En proceso Inyeccion"). */
-export const ordenesProduccionInyeccion = pgTable(
-  "ordenes_produccion_inyeccion",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    numeroOrden: text("numero_orden").notNull(),
-    numProceso: text("num_proceso"),
-    fichaCode: text("ficha_code")
-      .notNull()
-      .references(() => fichas.fichaCode, { onDelete: "cascade" }),
-    cantidadProgramada: numeric("cantidad_programada", {
-      precision: 18,
-      scale: 4,
-    }),
-    cantidadEntregada: numeric("cantidad_entregada", {
-      precision: 18,
-      scale: 4,
-    }),
-    maquinaInyectora: text("maquina_inyectora"),
-    estado: text("estado"),
-    tiempoUnitario: numeric("tiempo_unitario", { precision: 18, scale: 6 }),
-    totalTiempo: numeric("total_tiempo", { precision: 18, scale: 4 }),
-    totalHoras: numeric("total_horas", { precision: 18, scale: 4 }),
-    cargaId: uuid("carga_id").references(() => cargas.id, {
-      onDelete: "set null",
-    }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-);
-
 /** Referencia de rutas/zonas de despacho por cliente (de "2. Listado de mallas"). */
 export const mallasClientes = pgTable("mallas_clientes", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -242,6 +188,82 @@ export const mallasClientes = pgTable("mallas_clientes", {
     onDelete: "set null",
   }),
   createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Configuración editable de la app (clave/valor) — hoy solo el umbral de
+ * advertencia del motor de balance, pero deja espacio para más ajustes sin
+ * otra migración. Editable desde Administración.
+ */
+export const configuracion = pgTable("configuracion", {
+  clave: text("clave").primaryKey(),
+  valor: text("valor").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const diaSemanaEnum = pgEnum("dia_semana", [
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+]);
+
+/**
+ * Capacidad de mano de obra disponible por día (ver docs/BLUEPRINT.md,
+ * Capacidad de Mano de Obra). Editable desde Administración — la hoja
+ * "Resumen general Tiempo" del Excel tiene un layout irregular que no se
+ * pudo mapear automáticamente (ver riesgo abierto en el blueprint), así que
+ * por ahora la disponibilidad se configura a mano en vez de ingestarse.
+ */
+export const capacidadManoObra = pgTable("capacidad_mano_obra", {
+  dia: diaSemanaEnum("dia").primaryKey(),
+  minutosDisponibles: numeric("minutos_disponibles", { precision: 10, scale: 2 }).notNull().default("0"),
+  headcount: integer("headcount"),
+  horasExtra: numeric("horas_extra", { precision: 10, scale: 2 }),
+  temporales: integer("temporales"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Histórico real de demanda mensual (Predicción de Demanda). `pedidos` se
+ * reemplaza por completo en cada carga (es un snapshot, no histórico) — por
+ * eso cada carga de Pedidos recalcula y guarda aquí el total del mes de cada
+ * fila presente en ese archivo (`capturarSnapshotMensual`, lib/demand). Así
+ * el histórico se va acumulando con el tiempo sin depender de que `pedidos`
+ * conserve datos viejos.
+ */
+export const demandaHistoricaMensual = pgTable("demanda_historica_mensual", {
+  anioMes: text("anio_mes").primaryKey(), // 'YYYY-MM'
+  cantidadTotal: numeric("cantidad_total", { precision: 18, scale: 4 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const fuenteReporteEnum = pgEnum("fuente_reporte", ["kardex", "bom", "pedidos"]);
+export const tipoGraficoEnum = pgEnum("tipo_grafico", ["bar", "line"]);
+
+/** Reportes guardados del constructor de Análisis Dinámico (BI). */
+export const reportesGuardados = pgTable("reportes_guardados", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nombre: text("nombre").notNull(),
+  fuente: fuenteReporteEnum("fuente").notNull(),
+  dimensiones: jsonb("dimensiones").$type<string[]>().notNull(),
+  medida: text("medida").notNull(),
+  tipoGrafico: tipoGraficoEnum("tipo_grafico").notNull().default("bar"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });

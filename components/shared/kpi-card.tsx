@@ -1,5 +1,7 @@
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { Info, type LucideIcon } from "lucide-react";
+import { HoverTooltip } from "@/components/shared/hover-tooltip";
 import { cn } from "@/lib/utils";
 
 export function KPICard({
@@ -9,6 +11,7 @@ export function KPICard({
   icon: Icon,
   alert,
   href,
+  tooltip,
 }: {
   title: string;
   value: string;
@@ -16,8 +19,9 @@ export function KPICard({
   icon: LucideIcon;
   alert?: boolean;
   href?: string;
+  tooltip?: ReactNode;
 }) {
-  const content = (
+  const inner = (
     <div
       className={cn(
         "flex flex-col rounded-lg border bg-white p-4 shadow-sm transition-all",
@@ -26,7 +30,10 @@ export function KPICard({
       )}
     >
       <div className="mb-2 flex items-start justify-between">
-        <span className="text-sm font-medium text-slate-500">{title}</span>
+        <span className="flex items-center gap-1 text-sm font-medium text-slate-500">
+          {title}
+          {tooltip && <Info size={11} className="text-slate-400" />}
+        </span>
         <div
           className={cn(
             "rounded-md p-2",
@@ -43,5 +50,7 @@ export function KPICard({
     </div>
   );
 
-  return href ? <Link href={href}>{content}</Link> : content;
+  const content = href ? <Link href={href}>{inner}</Link> : inner;
+
+  return tooltip ? <HoverTooltip tooltip={tooltip}>{content}</HoverTooltip> : content;
 }

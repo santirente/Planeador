@@ -33,19 +33,16 @@ export const navigation: NavItem[] = [
     href: "/labor",
     name: "Capacidad Mano de Obra",
     icon: Users,
-    proximamente: true,
   },
   {
     href: "/prediction",
     name: "Predicción Demanda",
     icon: TrendingUp,
-    proximamente: true,
   },
   {
     href: "/dynamic-analysis",
     name: "Análisis Dinámico (BI)",
     icon: BarChart2,
-    proximamente: true,
   },
   { href: "/admin", name: "Administración", icon: Settings },
 ];

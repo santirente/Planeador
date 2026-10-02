@@ -2,6 +2,11 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { createClient } from "@/lib/supabase/server";
 
+// Todo detrás de auth con datos en vivo — nunca pre-renderizar en build
+// (propaga a todas las páginas de este grupo; ver también el export
+// individual en cada page.tsx que hace consultas propias, por si acaso).
+export const dynamic = "force-dynamic";
+
 async function getUserEmail(): Promise<string | null> {
   const supabaseConfigured =
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

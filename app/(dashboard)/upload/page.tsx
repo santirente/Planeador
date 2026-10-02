@@ -1,6 +1,9 @@
-import { CheckCircle, AlertTriangle } from "lucide-react";
 import { UploadForm } from "@/components/upload/upload-form";
+import { CargaEstadoBadge } from "@/components/upload/carga-estado-badge";
 import { getRecentCargas, isDatabaseConfigured } from "@/lib/db/queries";
+
+// Datos en vivo (auth + DB) — nunca debe intentar pre-renderizarse en build.
+export const dynamic = "force-dynamic";
 
 export default async function UploadPage() {
   const cargas = await getRecentCargas();
@@ -45,21 +48,11 @@ export default async function UploadPage() {
                       {c.filasExitosas}/{c.filasTotales}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
-                      {c.estado === "success" && (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                          <CheckCircle size={12} className="mr-1" /> Éxito
-                        </span>
-                      )}
-                      {c.estado === "warning" && (
-                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-                          <AlertTriangle size={12} className="mr-1" /> Advertencia ({c.filasError})
-                        </span>
-                      )}
-                      {c.estado === "error" && (
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                          <AlertTriangle size={12} className="mr-1" /> Fallido
-                        </span>
-                      )}
+                      <CargaEstadoBadge
+                        estado={c.estado}
+                        filasError={c.filasError}
+                        detalleErrores={c.detalleErrores}
+                      />
                     </td>
                   </tr>
                 ))}

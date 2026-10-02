@@ -7,6 +7,7 @@ import { logout } from "@/lib/auth/actions";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -60,7 +61,9 @@ export function Header({ userEmail }: { userEmail: string | null }) {
               }
             />
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Sesión</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Sesión</DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
