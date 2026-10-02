@@ -47,15 +47,29 @@ export async function getPedidosPendientes(): Promise<PedidoResumen[]> {
         nitCliente: mallasClientes.nitCliente,
         zona: mallasClientes.nombreZona,
         diaMalla: mallasClientes.diaMalla,
+        nombrePunto: mallasClientes.nombrePunto,
+        nombreClientePrincipal: mallasClientes.nombreClientePrincipal,
       })
       .from(mallasClientes),
   ]);
 
   const mallaPorNit = new Map(mallas.map((m) => [m.nitCliente, m]));
 
+  // El reporte plano de Novasoft (FAC0015) no trae el NIT del cliente — como
+  // respaldo se cruza por nombre contra el punto/cliente de la malla.
+  const normalizar = (s: string) => s.toUpperCase().replace(/\s+/g, " ").trim();
+  const mallaPorNombre = new Map<string, (typeof mallas)[number]>();
+  for (const m of mallas) {
+    for (const nombre of [m.nombrePunto, m.nombreClientePrincipal]) {
+      if (nombre && !mallaPorNombre.has(normalizar(nombre))) mallaPorNombre.set(normalizar(nombre), m);
+    }
+  }
+
   return rows
     .map((r) => {
-      const malla = r.clienteNit ? mallaPorNit.get(r.clienteNit) : undefined;
+      const malla =
+        (r.clienteNit ? mallaPorNit.get(r.clienteNit) : undefined) ??
+        (r.clienteNombre ? mallaPorNombre.get(normalizar(r.clienteNombre)) : undefined);
       return {
         numeroPedido: r.numeroPedido,
         clienteNombre: r.clienteNombre ?? "—",

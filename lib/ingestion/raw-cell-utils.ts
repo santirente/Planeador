@@ -49,6 +49,16 @@ export function rawNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Fecha "dd/mm/yyyy" (formato de los reportes planos de Novasoft) -> "yyyy-mm-dd". */
+export function rawFechaISOFromDDMMYYYY(value: unknown): string | null {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const text = rawText(value);
+  if (!text) return null;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text);
+  if (!m) return null;
+  return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+
 /** Fecha "dd/mm/yyyy" (formato de los reportes planos de Novasoft) -> año. */
 export function rawAnioFromFechaDDMMYYYY(value: unknown): number | null {
   if (value instanceof Date) return value.getFullYear();

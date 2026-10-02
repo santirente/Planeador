@@ -67,7 +67,14 @@ export const computeBalance = cache(async (): Promise<Map<string, BalanceNode>> 
     db.select({ itemCode: kardexExistencias.itemCode, existencia: kardexExistencias.existencia }).from(
       kardexExistencias,
     ),
-    db.select({ itemCode: pedidos.itemCode, cantidad: pedidos.cantidad, fecha: pedidos.fecha }).from(pedidos),
+    db
+      .select({
+        itemCode: pedidos.itemCode,
+        cantidad: pedidos.cantidad,
+        fecha: pedidos.fecha,
+        fechaEntrega: pedidos.fechaEntrega,
+      })
+      .from(pedidos),
     getSemanasColchonStockSeguridad(),
   ]);
 
@@ -91,9 +98,13 @@ export const computeBalance = cache(async (): Promise<Map<string, BalanceNode>> 
   // inflado por una ventana de tiempo artificialmente corta.
   let fechaMinMs: number | null = null;
   let fechaMaxMs: number | null = null;
+  // El reporte plano FAC0015 (pedidos pendientes por semanas) no trae la
+  // fecha del pedido, solo la de entrega — se usa esa como respaldo para que
+  // el rango no quede vacío (semanasCubiertas=1 multiplicaría la demanda).
   for (const row of pedidosRows) {
-    if (!row.fecha) continue;
-    const t = new Date(row.fecha).getTime();
+    const fechaRef = row.fecha ?? row.fechaEntrega;
+    if (!fechaRef) continue;
+    const t = new Date(fechaRef).getTime();
     if (fechaMinMs === null || t < fechaMinMs) fechaMinMs = t;
     if (fechaMaxMs === null || t > fechaMaxMs) fechaMaxMs = t;
   }

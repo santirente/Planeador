@@ -201,9 +201,18 @@ selector de reporte de siempre. El formato plano no trae todos los campos del
 pivot (BOM sin `etapa`/`estado`/`fecha_actualizacion`; Kardex sin
 `valor_total`, con `año` derivado de la fecha) — quedan `null`, es esperado.
 
-`pedidos.ts` y `mallas.ts` todavía solo soportan el formato pivot — se
-extienden con el mismo patrón cuando se tenga un archivo real crudo de cada
-uno para confirmar su layout.
+`pedidos.ts` también detecta el formato plano (2026-10-02): reporte Novasoft
+`FAC0015 PED PEND X SEMANAS DETALLE`, agrupado por producto (fila de producto
+`CODIGO-NOMBRE`, líneas de pedido con fecha de entrega, pedido, cliente y
+cantidades en columnas "vencido" + 4 semanas, y una fila de subtotal por
+producto que se ignora). Verificado contra `FAC0015_JOSE.XLS`: 126 productos,
+1285 líneas, 0 errores, subtotales coinciden. **No trae fecha del pedido, NIT
+ni bodega** — consecuencias: (a) el cruce con Mallas cae a coincidencia por
+nombre de cliente (`lib/orders/queries.ts`, ~50% de clientes coinciden);
+(b) el motor de balance usa `fecha_entrega` como respaldo para el rango de
+semanas del stock de seguridad (`lib/balance/engine.ts`); (c) como `fecha` queda
+null, esta carga ya no suma meses al histórico de Predicción de Demanda.
+`mallas.ts` todavía solo soporta el formato pivot.
 
 ---
 
